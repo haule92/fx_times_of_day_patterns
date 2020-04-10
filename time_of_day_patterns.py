@@ -12,6 +12,8 @@ from histdata.api import Platform as p, TimeFrame as tf
 path_zips = "/data/zips/"
 path_csvs = "/data/csvs/"
 
+# lol
+
 os.chdir(path_zips)
 
 years_list = ['2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009',
