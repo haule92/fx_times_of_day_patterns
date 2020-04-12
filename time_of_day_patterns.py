@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 import plotly.graph_objects as go
 from histdata import download_hist_data as dl
 from histdata.api import Platform as p, TimeFrame as tf
+from numba import jit
 
 path_zips = "/home/pfl/PycharmProjects/fx_times_of_day_patterns/data/zips/"
 path_csvs = "/home/pfl/PycharmProjects/fx_times_of_day_patterns/data/csvs/"
@@ -31,43 +32,95 @@ def extract_zip_files(p_z, p_c):
             zp.extract(fl[:-4]+".csv", p_c)
 
 
-def _times_manipulation(datetimecolumns, time_zone: str):
-    datetimecolumns[f'year_{time_zone}'] = pd.to_datetime(datetimecolumns[f'datetime_{time_zone}'].year)
-    datetimecolumns[f'quarter_{time_zone}'] = pd.to_datetime(datetimecolumns[f'datetime_{time_zone}'].quarter)
-    datetimecolumns[f'month_{time_zone}'] = pd.to_datetime(datetimecolumns[f'datetime_{time_zone}'].month)
-    datetimecolumns[f'weekofyear_{time_zone}'] = pd.to_datetime(datetimecolumns[f'datetime_{time_zone}'].weekofyear)
-    datetimecolumns[f'dayofweek_{time_zone}'] = pd.to_datetime(datetimecolumns[f'datetime_{time_zone}'].dayofweek)
-    datetimecolumns[f'day_{time_zone}'] = pd.to_datetime(datetimecolumns[f'datetime_{time_zone}'].day)
-    datetimecolumns[f'hour_{time_zone}'] = pd.to_datetime(datetimecolumns[f'datetime_{time_zone}'].hour)
-    datetimecolumns[f'minute_{time_zone}'] = pd.to_datetime(datetimecolumns[f'datetime_{time_zone}'].minute)
+def _times_manipulation(df, tz: str):
+    for i in tqdm(range(df.shape[0])):
+        df.loc[i, f'year_{tz}'] = df[f'datetime_{tz}'].loc[i].year
+        df.loc[i, f'quarter_{tz}'] = df[f'datetime_{tz}'].loc[i].quarter
+        df.loc[i, f'month_{tz}'] = df[f'datetime_{tz}'].loc[i].month
+        df.loc[i, f'weekofyear_{tz}'] = df[f'datetime_{tz}'].loc[i].weekofyear
+        df.loc[i, f'dayofweek_{tz}'] = df[f'datetime_{tz}'].loc[i].dayofweek
+        df.loc[i, f'day_{tz}'] = df[f'datetime_{tz}'].loc[i].day
+        df.loc[i, f'hour_{tz}'] = df[f'datetime_{tz}'].loc[i].hour
+        df.loc[i, f'minute_{tz}'] = df[f'datetime_{tz}'].loc[i].minute
 
-    return datetimecolumns
+    return df
+
+
+def _times_manipulation2(df, tz: str):
+    df[f'year_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.year)
+    df[f'quarter_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.quarter)
+    df[f'month_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.month)
+    df[f'weekofyear_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.weekofyear)
+    df[f'dayofweek_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.dayofweek)
+    df[f'day_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.day)
+    df[f'hour_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.hour)
+    df[f'minute_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.minute)
+
+    return df
+
+
+# def _times_manipulation3(df, tz: str):
+#     df.loc[f'year_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.year)
+#     df.loc[f'quarter_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.quarter)
+#     df.loc[f'month_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.month)
+#     df.loc[f'weekofyear_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.weekofyear)
+#     df.loc[f'dayofweek_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.dayofweek)
+#     df.loc[f'day_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.day)
+#     df.loc[f'hour_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.hour)
+#     df.loc[f'minute_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.minute)
+#
+#     return df
+
 
 def _cleaning_df(df):
     df.rename(columns={0: 'Date', 1: 'Open', 2: 'High', 3: 'Low', 4: 'Close', 5: 'Volume', }, inplace=True)
     df.drop(columns=['Volume'], inplace=True)
     df['datetime_EST'] = pd.to_datetime(df['Date'])
-    # df['year_EST'] = df['datetime_EST'].year
-    # df = _times_manipulation(datetimecolumns=df, time_zone='EST')
+    # df = _times_manipulation(df=df, tz='EST')
+    df = _times_manipulation2(df=df, tz='EST')
     df['datetime_GMT'] = df['datetime_EST'] + timedelta(hours=5)
-    # df = _times_manipulation(datetimecolumns=df, time_zone='GMT')
+    # df = _times_manipulation(df=df, tz='GMT')
+    df = _times_manipulation2(df=df, tz='GMT')
+
+    df = df[['datetime_EST',
+           'year_EST',
+           'quarter_EST',
+           'month_EST',
+           'weekofyear_EST',
+           'dayofweek_EST',
+           'day_EST',
+           'hour_EST',
+           'minute_EST',
+           'datetime_GMT',
+           'year_GMT',
+           'quarter_GMT',
+           'month_GMT',
+           'weekofyear_GMT',
+           'dayofweek_GMT',
+           'day_GMT',
+           'hour_GMT',
+           'minute_GMT',
+           'Open',
+           'High',
+           'Low',
+           'Close']]
 
     return df
 
 
 def transform_df_and_save_it_in_a_list_of_df(p_c, concrete=None):
-    list_df = []
+    # list_df = []
     csv_files = os.listdir(p_c)
     print("Saving DataFrames inside list_df")
     for f in tqdm(range(len(csv_files))):
         df = pd.read_csv(csv_files[f][:-8]+years_list[f]+'.csv', sep=';', header=None)
         df = _cleaning_df(df=df)
-        list_df.append(df)
+        # list_df.append(df)
         df.to_csv(csv_files[f][:-8]+years_list[f]+'.csv', index=False)
     if concrete is not None:
         pass
 
-    return list_df
+    # return list_df
 
 
 def plot_min_candle(df):
@@ -87,13 +140,12 @@ if __name__ == "__main__":
     # get_pair_currency_selected_years(y_lst=years_list, pair='eurusd')
     extract_zip_files(p_z=path_zips, p_c=path_csvs)
     os.chdir(path_csvs)
-    list_of_dfs = transform_df_and_save_it_in_a_list_of_df(p_c=path_csvs)
+    transform_df_and_save_it_in_a_list_of_df(p_c=path_csvs)
 
-    df = pd.read_csv(path_csvs+'DAT_ASCII_EURUSD_M1_2002.csv')
+    # df = pd.read_csv(path_csvs+'DAT_ASCII_EURUSD_M1_2002.csv', sep=';', header=None)
 
     #date_from = pd.Timestamp(date(2000, 9, 20))
     #date_to = pd.Timestamp(date(2000, 9, 22))
-
     #x = list_of_dfs[0][(list_of_dfs[0]['Date'] > date_from) & (list_of_dfs[0]['Date'] < date_to)]
-
     #plot_min_candlechart(x)
+
