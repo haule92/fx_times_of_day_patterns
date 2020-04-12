@@ -59,17 +59,51 @@ def _times_manipulation2(df, tz: str):
     return df
 
 
-# def _times_manipulation3(df, tz: str):
-#     df.loc[f'year_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.year)
-#     df.loc[f'quarter_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.quarter)
-#     df.loc[f'month_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.month)
-#     df.loc[f'weekofyear_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.weekofyear)
-#     df.loc[f'dayofweek_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.dayofweek)
-#     df.loc[f'day_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.day)
-#     df.loc[f'hour_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.hour)
-#     df.loc[f'minute_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.minute)
-#
-#     return df
+def _times_manipulation3(df, tz: str):
+    datetime_array = df[f'datetime_{tz}'].to_numpy()
+    datetime_array = datetime_array.astype('M8[s]')
+
+    year_array = np.array([])
+    for i in tqdm(datetime_array):
+        tmp = i.astype(object).year
+        year_array = np.append(year_array, tmp)
+    df[f'year_{tz}'] = year_array
+
+    # df.loc[f'quarter_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.quarter)
+
+    month_array = np.array([])
+    for i in tqdm(datetime_array):
+        tmp = i.astype(object).month
+        month_array = np.append(month_array, tmp)
+    df[f'month_{tz}'] = month_array
+
+    # df.loc[f'weekofyear_{tz}'] = df[f'datetime_{tz}'].apply(lambda r: r.weekofyear)
+
+    weekday_array = np.array([])
+    for i in tqdm(datetime_array):
+        tmp = i.astype(object).weekday()
+        weekday_array = np.append(weekday_array, tmp)
+    df[f'dayofweek_{tz}'] = weekday_array
+
+    day_array = np.array([])
+    for i in tqdm(datetime_array):
+        tmp = i.astype(object).day
+        day_array = np.append(day_array, tmp)
+    df[f'day_{tz}'] = day_array
+
+    hour_array = np.array([])
+    for i in tqdm(datetime_array):
+        tmp = i.astype(object).hour
+        hour_array = np.append(hour_array, tmp)
+    df[f'hour_{tz}'] = hour_array
+
+    minute_array = np.array([])
+    for i in tqdm(datetime_array):
+        tmp = i.astype(object).minute
+        minute_array = np.append(minute_array, tmp)
+    df[f'minute_{tz}'] = minute_array
+
+    return df
 
 
 def _cleaning_df(df):
@@ -78,9 +112,11 @@ def _cleaning_df(df):
     df['datetime_EST'] = pd.to_datetime(df['Date'])
     # df = _times_manipulation(df=df, tz='EST')
     df = _times_manipulation2(df=df, tz='EST')
+    # df = _times_manipulation3(df=df, tz='EST')
     df['datetime_GMT'] = df['datetime_EST'] + timedelta(hours=5)
     # df = _times_manipulation(df=df, tz='GMT')
     df = _times_manipulation2(df=df, tz='GMT')
+    # df = _times_manipulation3(df=df, tz='GMT')
 
     df = df[['datetime_EST',
            'year_EST',
@@ -105,6 +141,7 @@ def _cleaning_df(df):
            'Low',
            'Close']]
 
+
     return df
 
 
@@ -113,10 +150,10 @@ def transform_df_and_save_it_in_a_list_of_df(p_c, concrete=None):
     csv_files = os.listdir(p_c)
     print("Saving DataFrames inside list_df")
     for f in tqdm(range(len(csv_files))):
-        df = pd.read_csv(csv_files[f][:-8]+years_list[f]+'.csv', sep=';', header=None)
+        df = pd.read_csv(csv_files[f][:-8]+years_list[10:][f]+'.csv', sep=';', header=None)
         df = _cleaning_df(df=df)
         # list_df.append(df)
-        df.to_csv(csv_files[f][:-8]+years_list[f]+'.csv', index=False)
+        df.to_csv(csv_files[f][:-8]+years_list[10:][f]+'.csv', index=False)
     if concrete is not None:
         pass
 
@@ -132,12 +169,9 @@ def plot_min_candle(df):
     fig.show()
 
 
-#def filter_data_per_months(df, ):
-
-
 if __name__ == "__main__":
     os.chdir(path_zips)
-    # get_pair_currency_selected_years(y_lst=years_list, pair='eurusd')
+    get_pair_currency_selected_years(y_lst=years_list, pair='eurusd')
     extract_zip_files(p_z=path_zips, p_c=path_csvs)
     os.chdir(path_csvs)
     transform_df_and_save_it_in_a_list_of_df(p_c=path_csvs)
